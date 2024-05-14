@@ -1,6 +1,6 @@
-const STAKING_CONTRACT_ADDRESS = "0x8c2387821214854b94016D2A656A36691f72f1eD";
-const KANOI_CONTRACT_ADDRESS = "0x6cd22F8638D24A7BE5dEb21Bc7776BAB650d7154";
-const SAISEN_CONTRACT_ADDRESS = "0x6cd22F8638D24A7BE5dEb21Bc7776BAB650d7154";
+const STAKING_CONTRACT_ADDRESS = "0xEa14d06e3ba148B07439C986766c56Ae324f50E1";
+const KANOI_CONTRACT_ADDRESS = "0x6C3893c7196e993495BC3f52D5abBC83C431e69B";
+const SAISEN_CONTRACT_ADDRESS = "0x1f9F2c83C172e7dB204A7577CCa5777Bc9b350B7";
 
 const STAKING_CONTRACT_ABI = [
 	{ inputs: [], stateMutability: "nonpayable", type: "constructor" },
@@ -203,11 +203,14 @@ const STAKING_CONTRACT_ABI = [
 const KANOI_CONTRACT_ABI = [
 	{
 		inputs: [
-			{ internalType: "address", name: "_liquidityWallet", type: "address" },
-			{ internalType: "address", name: "_marketingWallet", type: "address" },
-			{ internalType: "address", name: "_developmentWallet", type: "address" },
+			{ internalType: "string", name: "name", type: "string" },
+			{ internalType: "string", name: "symbol", type: "string" },
+			{ internalType: "uint8", name: "decimals", type: "uint8" },
+			{ internalType: "uint256", name: "totalSupply", type: "uint256" },
+			{ internalType: "address payable", name: "feeReceiver", type: "address" },
+			{ internalType: "address", name: "tokenOwnerAddress", type: "address" },
 		],
-		stateMutability: "nonpayable",
+		stateMutability: "payable",
 		type: "constructor",
 	},
 	{
@@ -223,49 +226,12 @@ const KANOI_CONTRACT_ABI = [
 	{
 		anonymous: false,
 		inputs: [
-			{ indexed: true, internalType: "address", name: "previousOwner", type: "address" },
-			{ indexed: true, internalType: "address", name: "newOwner", type: "address" },
-		],
-		name: "OwnershipTransferred",
-		type: "event",
-	},
-	{
-		anonymous: false,
-		inputs: [
 			{ indexed: true, internalType: "address", name: "from", type: "address" },
 			{ indexed: true, internalType: "address", name: "to", type: "address" },
 			{ indexed: false, internalType: "uint256", name: "value", type: "uint256" },
 		],
 		name: "Transfer",
 		type: "event",
-	},
-	{
-		inputs: [],
-		name: "DECIMALS",
-		outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [],
-		name: "PRIVATE_SALE_SUPPLY",
-		outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [],
-		name: "PUBLIC_SALE_SUPPLY",
-		outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [],
-		name: "TOTAL_SUPPLY",
-		outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-		stateMutability: "view",
-		type: "function",
 	},
 	{
 		inputs: [
@@ -280,7 +246,7 @@ const KANOI_CONTRACT_ABI = [
 	{
 		inputs: [
 			{ internalType: "address", name: "spender", type: "address" },
-			{ internalType: "uint256", name: "amount", type: "uint256" },
+			{ internalType: "uint256", name: "value", type: "uint256" },
 		],
 		name: "approve",
 		outputs: [{ internalType: "bool", name: "", type: "bool" }],
@@ -297,16 +263,6 @@ const KANOI_CONTRACT_ABI = [
 	{
 		inputs: [{ internalType: "uint256", name: "value", type: "uint256" }],
 		name: "burn",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
-		inputs: [
-			{ internalType: "address", name: "account", type: "address" },
-			{ internalType: "uint256", name: "value", type: "uint256" },
-		],
-		name: "burnFrom",
 		outputs: [],
 		stateMutability: "nonpayable",
 		type: "function",
@@ -329,30 +285,6 @@ const KANOI_CONTRACT_ABI = [
 		type: "function",
 	},
 	{
-		inputs: [],
-		name: "developmentTax",
-		outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [],
-		name: "developmentWallet",
-		outputs: [{ internalType: "address", name: "", type: "address" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [
-			{ internalType: "address", name: "account", type: "address" },
-			{ internalType: "bool", name: "excluded", type: "bool" },
-		],
-		name: "excludeFromTax",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
 		inputs: [
 			{ internalType: "address", name: "spender", type: "address" },
 			{ internalType: "uint256", name: "addedValue", type: "uint256" },
@@ -364,143 +296,9 @@ const KANOI_CONTRACT_ABI = [
 	},
 	{
 		inputs: [],
-		name: "isPrivateSale",
-		outputs: [{ internalType: "bool", name: "", type: "bool" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [],
-		name: "isPublicSale",
-		outputs: [{ internalType: "bool", name: "", type: "bool" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [],
-		name: "liquidityTax",
-		outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [],
-		name: "liquidityWallet",
-		outputs: [{ internalType: "address", name: "", type: "address" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [],
-		name: "marketingTax",
-		outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [],
-		name: "marketingWallet",
-		outputs: [{ internalType: "address", name: "", type: "address" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [],
 		name: "name",
 		outputs: [{ internalType: "string", name: "", type: "string" }],
 		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [],
-		name: "owner",
-		outputs: [{ internalType: "address", name: "", type: "address" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "uint256", name: "amount", type: "uint256" }],
-		name: "privateMint",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "uint256", name: "amount", type: "uint256" }],
-		name: "publicSale",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{ inputs: [], name: "renounceOwnership", outputs: [], stateMutability: "nonpayable", type: "function" },
-	{
-		inputs: [],
-		name: "sellTax",
-		outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "uint256", name: "_devTax", type: "uint256" }],
-		name: "setDevelopmentTax",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "address", name: "_developmentWallet", type: "address" }],
-		name: "setDevelopmentWallet",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "uint256", name: "_liquidityTax", type: "uint256" }],
-		name: "setLiquidityTax",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "address", name: "_liquidityWallet", type: "address" }],
-		name: "setLiquidityWallet",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "uint256", name: "_marketingTax", type: "uint256" }],
-		name: "setMarketingTax",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "address", name: "_marketingWallet", type: "address" }],
-		name: "setMarketingWallet",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "bool", name: "_privateSale", type: "bool" }],
-		name: "setPrivateSale",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "bool", name: "_publicSale", type: "bool" }],
-		name: "setPublicSale",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "uint256", name: "_sellTax", type: "uint256" }],
-		name: "setSellTax",
-		outputs: [],
-		stateMutability: "nonpayable",
 		type: "function",
 	},
 	{
@@ -529,19 +327,12 @@ const KANOI_CONTRACT_ABI = [
 	},
 	{
 		inputs: [
-			{ internalType: "address", name: "from", type: "address" },
-			{ internalType: "address", name: "to", type: "address" },
+			{ internalType: "address", name: "sender", type: "address" },
+			{ internalType: "address", name: "recipient", type: "address" },
 			{ internalType: "uint256", name: "amount", type: "uint256" },
 		],
 		name: "transferFrom",
 		outputs: [{ internalType: "bool", name: "", type: "bool" }],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "address", name: "newOwner", type: "address" }],
-		name: "transferOwnership",
-		outputs: [],
 		stateMutability: "nonpayable",
 		type: "function",
 	},
@@ -549,11 +340,14 @@ const KANOI_CONTRACT_ABI = [
 const SAISEN_CONTRACT_ABI = [
 	{
 		inputs: [
-			{ internalType: "address", name: "_liquidityWallet", type: "address" },
-			{ internalType: "address", name: "_marketingWallet", type: "address" },
-			{ internalType: "address", name: "_developmentWallet", type: "address" },
+			{ internalType: "string", name: "name", type: "string" },
+			{ internalType: "string", name: "symbol", type: "string" },
+			{ internalType: "uint8", name: "decimals", type: "uint8" },
+			{ internalType: "uint256", name: "totalSupply", type: "uint256" },
+			{ internalType: "address payable", name: "feeReceiver", type: "address" },
+			{ internalType: "address", name: "tokenOwnerAddress", type: "address" },
 		],
-		stateMutability: "nonpayable",
+		stateMutability: "payable",
 		type: "constructor",
 	},
 	{
@@ -569,49 +363,12 @@ const SAISEN_CONTRACT_ABI = [
 	{
 		anonymous: false,
 		inputs: [
-			{ indexed: true, internalType: "address", name: "previousOwner", type: "address" },
-			{ indexed: true, internalType: "address", name: "newOwner", type: "address" },
-		],
-		name: "OwnershipTransferred",
-		type: "event",
-	},
-	{
-		anonymous: false,
-		inputs: [
 			{ indexed: true, internalType: "address", name: "from", type: "address" },
 			{ indexed: true, internalType: "address", name: "to", type: "address" },
 			{ indexed: false, internalType: "uint256", name: "value", type: "uint256" },
 		],
 		name: "Transfer",
 		type: "event",
-	},
-	{
-		inputs: [],
-		name: "DECIMALS",
-		outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [],
-		name: "PRIVATE_SALE_SUPPLY",
-		outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [],
-		name: "PUBLIC_SALE_SUPPLY",
-		outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [],
-		name: "TOTAL_SUPPLY",
-		outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-		stateMutability: "view",
-		type: "function",
 	},
 	{
 		inputs: [
@@ -626,7 +383,7 @@ const SAISEN_CONTRACT_ABI = [
 	{
 		inputs: [
 			{ internalType: "address", name: "spender", type: "address" },
-			{ internalType: "uint256", name: "amount", type: "uint256" },
+			{ internalType: "uint256", name: "value", type: "uint256" },
 		],
 		name: "approve",
 		outputs: [{ internalType: "bool", name: "", type: "bool" }],
@@ -643,16 +400,6 @@ const SAISEN_CONTRACT_ABI = [
 	{
 		inputs: [{ internalType: "uint256", name: "value", type: "uint256" }],
 		name: "burn",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
-		inputs: [
-			{ internalType: "address", name: "account", type: "address" },
-			{ internalType: "uint256", name: "value", type: "uint256" },
-		],
-		name: "burnFrom",
 		outputs: [],
 		stateMutability: "nonpayable",
 		type: "function",
@@ -675,30 +422,6 @@ const SAISEN_CONTRACT_ABI = [
 		type: "function",
 	},
 	{
-		inputs: [],
-		name: "developmentTax",
-		outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [],
-		name: "developmentWallet",
-		outputs: [{ internalType: "address", name: "", type: "address" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [
-			{ internalType: "address", name: "account", type: "address" },
-			{ internalType: "bool", name: "excluded", type: "bool" },
-		],
-		name: "excludeFromTax",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
 		inputs: [
 			{ internalType: "address", name: "spender", type: "address" },
 			{ internalType: "uint256", name: "addedValue", type: "uint256" },
@@ -710,143 +433,9 @@ const SAISEN_CONTRACT_ABI = [
 	},
 	{
 		inputs: [],
-		name: "isPrivateSale",
-		outputs: [{ internalType: "bool", name: "", type: "bool" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [],
-		name: "isPublicSale",
-		outputs: [{ internalType: "bool", name: "", type: "bool" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [],
-		name: "liquidityTax",
-		outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [],
-		name: "liquidityWallet",
-		outputs: [{ internalType: "address", name: "", type: "address" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [],
-		name: "marketingTax",
-		outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [],
-		name: "marketingWallet",
-		outputs: [{ internalType: "address", name: "", type: "address" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [],
 		name: "name",
 		outputs: [{ internalType: "string", name: "", type: "string" }],
 		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [],
-		name: "owner",
-		outputs: [{ internalType: "address", name: "", type: "address" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "uint256", name: "amount", type: "uint256" }],
-		name: "privateMint",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "uint256", name: "amount", type: "uint256" }],
-		name: "publicSale",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{ inputs: [], name: "renounceOwnership", outputs: [], stateMutability: "nonpayable", type: "function" },
-	{
-		inputs: [],
-		name: "sellTax",
-		outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-		stateMutability: "view",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "uint256", name: "_devTax", type: "uint256" }],
-		name: "setDevelopmentTax",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "address", name: "_developmentWallet", type: "address" }],
-		name: "setDevelopmentWallet",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "uint256", name: "_liquidityTax", type: "uint256" }],
-		name: "setLiquidityTax",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "address", name: "_liquidityWallet", type: "address" }],
-		name: "setLiquidityWallet",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "uint256", name: "_marketingTax", type: "uint256" }],
-		name: "setMarketingTax",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "address", name: "_marketingWallet", type: "address" }],
-		name: "setMarketingWallet",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "bool", name: "_privateSale", type: "bool" }],
-		name: "setPrivateSale",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "bool", name: "_publicSale", type: "bool" }],
-		name: "setPublicSale",
-		outputs: [],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "uint256", name: "_sellTax", type: "uint256" }],
-		name: "setSellTax",
-		outputs: [],
-		stateMutability: "nonpayable",
 		type: "function",
 	},
 	{
@@ -875,19 +464,12 @@ const SAISEN_CONTRACT_ABI = [
 	},
 	{
 		inputs: [
-			{ internalType: "address", name: "from", type: "address" },
-			{ internalType: "address", name: "to", type: "address" },
+			{ internalType: "address", name: "sender", type: "address" },
+			{ internalType: "address", name: "recipient", type: "address" },
 			{ internalType: "uint256", name: "amount", type: "uint256" },
 		],
 		name: "transferFrom",
 		outputs: [{ internalType: "bool", name: "", type: "bool" }],
-		stateMutability: "nonpayable",
-		type: "function",
-	},
-	{
-		inputs: [{ internalType: "address", name: "newOwner", type: "address" }],
-		name: "transferOwnership",
-		outputs: [],
 		stateMutability: "nonpayable",
 		type: "function",
 	},

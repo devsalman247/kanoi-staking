@@ -218,7 +218,6 @@ export default function Page() {
 	}, [poolInfoData.data]);
 
 	const estimatedAPY = useMemo(() => {
-		console.log("🚀 ~ estimatedAPY ~ poolInfoData:", poolInfoData);
 		if (!poolInfoData.data || poolInfoData.data?.length === 0 || !poolInfoData.data[0]?.result) return "--";
 		const poolInfo = poolInfoData.data.map((pool) => {
 			const [depositToken, rewardToken, depositedAmount, apy, lockDays] = pool.result;
@@ -294,12 +293,12 @@ export default function Page() {
 		return formatNumber(totalPendingRewards.div(1e18).toString());
 	}, [pendingRewardsData.data, activeTab]);
 
-	const getDailyReward = (poolIndex, amountDeposited) => {
-		if (!poolInfoData.data || poolInfoData.data?.length === 0 || !address) return "--";
+	const getDailyReward = (poolIndex, amountDeposited, lockDays) => {
+		if (!poolInfoData.data || poolInfoData.data?.length === 0 || !address || !lockDays) return "--";
 		const apy = new Decimal(poolInfoData.data[poolIndex].result[3].toString());
 		const depositedAmount = new Decimal(amountDeposited.toString()).div(1e18);
 		const yearlyReward = apy.mul(depositedAmount).dividedBy(100);
-		const dailyReward = yearlyReward.div(360);
+		const dailyReward = yearlyReward.div(365);
 		return formatNumber(dailyReward.toString());
 	};
 
@@ -335,7 +334,10 @@ export default function Page() {
 	const { totalDeposited, totalDepositedFormatted } = useMemo(() => {
 		if (!userInfoData.data || userInfoData.data?.length === 0 || !address)
 			return { totalDeposited: null, totalDepositedFormatted: "0" };
+		const sliceStartIndex = activeTab === "kanoi" ? 0 : 5;
+		const sliceEndIndex = activeTab === "kanoi" ? 5 : 10;
 		const totalDeposited = userInfoData.data
+			.slice(sliceStartIndex, sliceEndIndex)
 			.reduce((acc, pool) => {
 				const [amount] = pool.result;
 				return acc.add(new Decimal(amount.toString()));
@@ -348,7 +350,7 @@ export default function Page() {
 			totalDeposited,
 			totalDepositedFormatted,
 		};
-	}, [userInfoData.data]);
+	}, [userInfoData.data, activeTab]);
 
 	// Write Functions
 	const { data: stakingTx, writeContractAsync, error: stakingTxError } = useWriteContract({});
@@ -380,6 +382,15 @@ export default function Page() {
 			const allowance = new Decimal(allowanceData.data[coin === "kanoi" ? 0 : 1].result.toString());
 			const balance = new Decimal(balanceData.data[coin === "kanoi" ? 0 : 1].result.toString());
 			const amountDec = new Decimal(amount);
+			// console.log("🚀 ~ stake ~ amountDec:", amountDec.toString());
+			// console.log(
+			// 	"🚀 ~ stake ~ balance:",
+			// 	allowance.lt(amountDec),
+			// 	coin,
+			// 	amountDec,
+			// 	allowance,
+			// 	amountDec.toFixed(18).split(".")[0]
+			// );
 
 			if (balance.lt(amountDec)) {
 				notify("error", "Insufficient balance.");
@@ -413,18 +424,17 @@ export default function Page() {
 
 	useEffect(() => {
 		if (stakingTxReceipt) {
+			allowanceData.refetch();
 			setTimeout(() => {
-				allowanceData.refetch();
-			}, 5000);
+				const amountDec = new Decimal(stakingAmount).mul(1e18);
 
-			const amountDec = new Decimal(stakingAmount).mul(1e18);
-
-			stakingWriteTx.writeContractAsync?.({
-				abi: STAKING_CONTRACT_ABI,
-				address: STAKING_CONTRACT_ADDRESS,
-				functionName: "deposit",
-				args: [coinMap[stakeActiveTab.coin][stakeActiveTab.duration], BigInt(amountDec.toFixed(18).split(".")[0])],
-			});
+				stakingWriteTx.writeContractAsync?.({
+					abi: STAKING_CONTRACT_ABI,
+					address: STAKING_CONTRACT_ADDRESS,
+					functionName: "deposit",
+					args: [coinMap[stakeActiveTab.coin][stakeActiveTab.duration], BigInt(amountDec.toFixed(18).split(".")[0])],
+				});
+			}, 3000);
 		}
 	}, [stakingTxReceipt]);
 
@@ -435,6 +445,7 @@ export default function Page() {
 
 			balanceData.refetch();
 			userInfoData.refetch();
+			allowanceData.refetch();
 		}
 	}, [stakingWriteTxReceipt.data]);
 
@@ -514,7 +525,7 @@ export default function Page() {
 													</div>
 												</div>
 												<div className="flex mt-3 text-2xl font-bold uppercase text-bold">
-													{totalDepositedFormatted} $KANOI
+													{totalDepositedFormatted} ${activeTab === "kanoi" ? "KANOI" : "SAISEN"}
 												</div>
 												<div className="flex text-sm text-gray-400">
 													<p className="text-grey-light">$0.00</p>
@@ -785,7 +796,9 @@ export default function Page() {
 													<div className="md:w-2/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0 xl:mr-4">
 														<div className="flex flex-col items-start xl:flex-row xl:items-center">
 															<p className="text-xs uppercase md:hidden text-grey-light">asset</p>
-															<div className="font-bold text-black uppercase text-xl xl:ml-3 xl:order-2">KANOI</div>
+															<div className="font-bold text-black uppercase text-xl xl:ml-3 xl:order-2">
+																{activeTab === "kanoi" ? "KANOI" : "SAISEN"}
+															</div>
 															<span
 																className="lazy-load-image-background lazy-load-image-loaded"
 																style={{
@@ -806,19 +819,25 @@ export default function Page() {
 													</div>
 													<div className="md:w-2/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0">
 														<div className="text-black text-sm font-bold">
-															{getDailyReward(activeTab === "kanoi" ? index : index + 5, pool[0])} Kanoi
+															{getDailyReward(
+																activeTab === "kanoi" ? index : index + 5,
+																pool[0],
+																poolInfoData?.data?.[index].result[4]
+															)}{" "}
+															{activeTab === "kanoi" ? "Kanoi" : "Saisen"}
 														</div>
 														<div className="text-slate-700 font-medium">$0.42</div>
 													</div>
 													<div className="md:w-1/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0">
 														<div className="text-black text-sm font-bold">
-															{getPendingReward(activeTab === "kanoi" ? index : index + 5)} Kanoi
+															{getPendingReward(activeTab === "kanoi" ? index : index + 5)}{" "}
+															{activeTab === "kanoi" ? "Kanoi" : "Saisen"}
 														</div>
 														<div className="text-slate-700 font-medium">$23.99</div>
 													</div>
 													<div className="md:w-1/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0">
 														<div className="text-black text-sm font-bold">
-															{getDepositedAmount(pool[0].toString())} Kanoi
+															{getDepositedAmount(pool[0].toString())} {activeTab === "kanoi" ? "Kanoi" : "Saisen"}
 														</div>
 														<div className="text-slate-700 font-medium">$215.99</div>
 													</div>
@@ -845,87 +864,93 @@ export default function Page() {
 											</div>
 										)
 								)}
-							</>
-						)}
-						<div className="p-4 mb-4 bg-white border rounded border-grey-200">
-							<div className="flex flex-row flex-wrap !md:flex-nowrap items-start md:items-center">
-								<div className="md:w-3/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0 xl:mr-4">
-									<div className="flex flex-col items-start xl:flex-row xl:items-center">
-										<p className="text-xs uppercase md:hidden text-grey-light">asset</p>
-										<div className="font-bold text-black uppercase text-xl xl:ml-3 xl:order-2">KANOI</div>
-										<span
-											className="lazy-load-image-background lazy-load-image-loaded"
-											style={{
-												color: "transparent",
-												display: "inline-block",
-												height: "120px",
-												width: "120px",
-											}}>
-											<Image
-												src="/apecoin-pool-image.png"
-												className="h-[120px] w-[120px] max-w-none xl:order-1 rounded-lg"
-												alt="NFT Asset"
-												height="120"
-												width="120"
-											/>
-										</span>
-									</div>
-								</div>
-								<div className="md:w-3/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0">
-									<div className="text-grey-light">Stake some $KANOI to start earning rewards.</div>
-								</div>
-								<div className="md:w-3/12 basis-[100%] md:basis-[auto] md:flex md:flex-row md:justify-end">
-									<button
-										onClick={() => setStakeIsCollapse(!stakeIsCollapse)}
-										className="rounded border-2 uppercase px-5 py-2.5 mb-2 text-center font-bold text-xs disabled:cursor-not-allowed transition-colors bg-[#e8833a] text-white border-white-200 hover:bg-[#e8833a] focus:bg-[#e8833a] hover:border-[#e8833a] disabled:bg-grey w-full md:w-[150px]"
-										type="button">
-										<div className="flex items-center justify-center gap-2">
-											<div>MANAGE</div>
-											{!stakeIsCollapse ? (
-												<iconify-icon icon="vaadin:arrow-down" width="14" height="14"></iconify-icon>
-											) : (
-												<iconify-icon icon="vaadin:arrow-up" width="14" height="14"></iconify-icon>
-											)}
-										</div>
-									</button>
-								</div>
-							</div>
-							<Collapse in={stakeIsCollapse} className="mt-4">
-								<div id="example-collapse-text" className="!visible">
-									<div className="flex justify-end flex-col md:flex-row items-center gap-3">
-										<div className="card flex flex-col justify-between !bg-blue-100 p-3 w-full md:w-3/12 min-h-56">
-											<h6 className="mb-4">CLAIM REWARDS </h6>
-
-											<div>
-												<div className="mb-2 text-xs text-slate-500 font-medium">Unclaimed Balance: 10.87 Kanoi</div>
-
-												<button className="rounded border-2 uppercase px-5 py-2.5 mb-2 text-center font-bold text-xs disabled:cursor-not-allowed transition-colors bg-[#e8833a] text-white border-white-200 hover:bg-[#e8833a] focus:bg-[#e8833a] hover:border-[#e8833a]  disabled:bg-grey w-full">
-													CLAIM
-												</button>
+								<div className="p-4 mb-4 bg-white border rounded border-grey-200">
+									<div className="flex flex-row flex-wrap !md:flex-nowrap items-start md:items-center">
+										<div className="md:w-3/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0 xl:mr-4">
+											<div className="flex flex-col items-start xl:flex-row xl:items-center">
+												<p className="text-xs uppercase md:hidden text-grey-light">asset</p>
+												<div className="font-bold text-black uppercase text-xl xl:ml-3 xl:order-2">
+													{activeTab === "kanoi" ? "KANOI" : "SAISEN"}
+												</div>
+												<span
+													className="lazy-load-image-background lazy-load-image-loaded"
+													style={{
+														color: "transparent",
+														display: "inline-block",
+														height: "120px",
+														width: "120px",
+													}}>
+													<Image
+														src="/apecoin-pool-image.png"
+														className="h-[120px] w-[120px] max-w-none xl:order-1 rounded-lg"
+														alt="NFT Asset"
+														height="120"
+														width="120"
+													/>
+												</span>
 											</div>
 										</div>
-										<div className="card !bg-blue-100 p-3 w-full md:w-3/12 min-h-56">
-											<h6 className="mb-4">WITHDRAW</h6>
-
-											<div className="mb-2 text-xs text-slate-700 font-medium">Deposited Balance: 96 Kanoi</div>
-
-											<div className="flex gap-2 mb-4">
-												<input
-													type="number"
-													className="border-2 w-3/5 border-grey-200 focus:outline-none rounded-md p-2"
-												/>
-												<button className="rounded border-2 w-2/5 uppercase p-2 text-center font-bold text-xs disabled:cursor-not-allowed transition-colors bg-[#fff] text-[#e8833a] border-[#e8833a] hover:bg-[#e8833a] focus:bg-[#e8833a] hover:border-[#e8833a] hover:text-white  disabled:bg-grey">
-													WITHDRAW
-												</button>
+										<div className="md:w-3/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0">
+											<div className="text-grey-light">
+												Stake some ${activeTab === "kanoi" ? "KANOI" : "SAISEN"} to start earning rewards.
 											</div>
-											<button className="rounded border-2 uppercase px-5 py-2.5 mb-2 text-center font-bold text-xs disabled:cursor-not-allowed transition-colors bg-[#e8833a] text-white border-white-200 hover:bg-[#e8833a] focus:bg-[#e8833a] hover:border-[#e8833a]  disabled:bg-grey w-full">
-												WITHDRAW All
+										</div>
+										<div className="md:w-3/12 basis-[100%] md:basis-[auto] md:flex md:flex-row md:justify-end">
+											<button
+												onClick={() => setStakeIsCollapse(!stakeIsCollapse)}
+												className="rounded border-2 uppercase px-5 py-2.5 mb-2 text-center font-bold text-xs disabled:cursor-not-allowed transition-colors bg-[#e8833a] text-white border-white-200 hover:bg-[#e8833a] focus:bg-[#e8833a] hover:border-[#e8833a] disabled:bg-grey w-full md:w-[150px]"
+												type="button">
+												<div className="flex items-center justify-center gap-2">
+													<div>MANAGE</div>
+													{!stakeIsCollapse ? (
+														<iconify-icon icon="vaadin:arrow-down" width="14" height="14"></iconify-icon>
+													) : (
+														<iconify-icon icon="vaadin:arrow-up" width="14" height="14"></iconify-icon>
+													)}
+												</div>
 											</button>
 										</div>
 									</div>
+									<Collapse in={stakeIsCollapse} className="mt-4">
+										<div id="example-collapse-text" className="!visible">
+											<div className="flex justify-end flex-col md:flex-row items-center gap-3">
+												<div className="card flex flex-col justify-between !bg-blue-100 p-3 w-full md:w-3/12 min-h-56">
+													<h6 className="mb-4">CLAIM REWARDS </h6>
+
+													<div>
+														<div className="mb-2 text-xs text-slate-500 font-medium">
+															Unclaimed Balance: 10.87 Kanoi
+														</div>
+
+														<button className="rounded border-2 uppercase px-5 py-2.5 mb-2 text-center font-bold text-xs disabled:cursor-not-allowed transition-colors bg-[#e8833a] text-white border-white-200 hover:bg-[#e8833a] focus:bg-[#e8833a] hover:border-[#e8833a]  disabled:bg-grey w-full">
+															CLAIM
+														</button>
+													</div>
+												</div>
+												<div className="card !bg-blue-100 p-3 w-full md:w-3/12 min-h-56">
+													<h6 className="mb-4">WITHDRAW</h6>
+
+													<div className="mb-2 text-xs text-slate-700 font-medium">Deposited Balance: 96 Kanoi</div>
+
+													<div className="flex gap-2 mb-4">
+														<input
+															type="number"
+															className="border-2 w-3/5 border-grey-200 focus:outline-none rounded-md p-2"
+														/>
+														<button className="rounded border-2 w-2/5 uppercase p-2 text-center font-bold text-xs disabled:cursor-not-allowed transition-colors bg-[#fff] text-[#e8833a] border-[#e8833a] hover:bg-[#e8833a] focus:bg-[#e8833a] hover:border-[#e8833a] hover:text-white  disabled:bg-grey">
+															WITHDRAW
+														</button>
+													</div>
+													<button className="rounded border-2 uppercase px-5 py-2.5 mb-2 text-center font-bold text-xs disabled:cursor-not-allowed transition-colors bg-[#e8833a] text-white border-white-200 hover:bg-[#e8833a] focus:bg-[#e8833a] hover:border-[#e8833a]  disabled:bg-grey w-full">
+														WITHDRAW All
+													</button>
+												</div>
+											</div>
+										</div>
+									</Collapse>
 								</div>
-							</Collapse>
-						</div>
+							</>
+						)}
 					</div>
 				</>
 			)}
@@ -1074,7 +1099,7 @@ export default function Page() {
 						</button>
 					) : (
 						<button
-							onClick={stake}
+							onClick={() => stake(stakeActiveTab.coin)}
 							className="rounded border-2 uppercase px-5 py-2.5 mb-2 text-center font-bold text-xs disabled:cursor-not-allowed transition-colors bg-[#e8833a] text-white border-white-200 hover:bg-[#e8833a] focus:bg-[#e8833a] hover:border-[#e8833a]  disabled:bg-grey w-full"
 							type="button">
 							Stake

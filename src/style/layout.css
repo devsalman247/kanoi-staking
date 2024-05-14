@@ -1,0 +1,90 @@
+/* .home-nav {
+	background-image: url("../../public/MainSectionBackgroundDesktop.png");
+} */
+
+.nav-tabs .nav-link {
+	font-size: 0.875rem;
+	line-height: 1.25rem;
+	font-weight: 700;
+	color: #7f8699;
+}
+
+.nav-tabs .nav-link:hover {
+	border-color: transparent !important;
+}
+
+.nav-tabs .nav-item.show .nav-link,
+.nav-tabs .nav-link.active {
+	border: 0;
+	color: #e8833a !important;
+	background-color: rgba(0, 67, 229, 0.1) !important;
+	border-radius: 8px;
+}
+
+.nav-link:focus,
+.nav-link:hover {
+	color: #e8833a !important;
+}
+
+.btn-primary {
+	background-color: #e8833a !important;
+	border-color: #e8833a !important;
+}
+
+/* banner */
+
+.banner-section {
+	background-image: url("../../public/MainSectionBackgroundDesktop.png");
+	padding-bottom: 50px;
+	margin-bottom: 100px;
+}
+
+/* faqs */
+
+.accordion-button {
+	color: #000;
+	font-weight: bold;
+	font-size: 24px;
+}
+
+.accordion-button:not(.collapsed) {
+	background-color: transparent !important;
+}
+
+.accordion-button:focus {
+	box-shadow: none !important;
+}
+
+.dashboard-bg,
+.pools-bg,
+.market-bg {
+	/* background-image: url("../../public/MainSectionBackgroundDesktop.png"); */
+	background: rgb(182, 224, 247);
+	background: -moz-linear-gradient(47deg, rgba(182, 224, 247, 1) 0%, rgba(255, 255, 255, 1) 50%);
+	background: -webkit-linear-gradient(47deg, rgba(182, 224, 247, 1) 0%, rgba(255, 255, 255, 1) 50%);
+	background: linear-gradient(47deg, rgba(182, 224, 247, 1) 0%, rgba(255, 255, 255, 1) 50%);
+	filter: progid:DXImageTransform.Microsoft.gradient(startColorstr="#b6e0f7",endColorstr="#ffffff",GradientType=1);
+}
+
+.dashboard-bg.low-gradient {
+	background: rgb(182, 224, 247);
+	background: -moz-linear-gradient(47deg, rgba(182, 224, 247, 1) 0%, rgba(255, 255, 255, 1) 25%);
+	background: -webkit-linear-gradient(47deg, rgba(182, 224, 247, 1) 0%, rgba(255, 255, 255, 1) 25%);
+	background: linear-gradient(47deg, rgba(182, 224, 247, 1) 0%, rgba(255, 255, 255, 1) 25%);
+	filter: progid:DXImageTransform.Microsoft.gradient(startColorstr="#b6e0f7",endColorstr="#ffffff",GradientType=1);
+}
+
+.wallet-dropdown .dropdown-item.active .wallet-dropdown,
+.dropdown-item:active {
+	background-color: #e8833a !important;
+}
+
+@media screen and (max-width: 767px) {
+	.sm-nav-tabs {
+		position: fixed;
+		bottom: 20px;
+		left: 40%;
+		transform: translateX(-40%);
+		z-index: 11;
+	}
+}

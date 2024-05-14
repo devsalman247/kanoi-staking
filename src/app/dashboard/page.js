@@ -219,7 +219,7 @@ export default function Page() {
 
 	const estimatedAPY = useMemo(() => {
 		console.log("🚀 ~ estimatedAPY ~ poolInfoData:", poolInfoData);
-		if (!poolInfoData.data || poolInfoData.data?.length === 0) return "--";
+		if (!poolInfoData.data || poolInfoData.data?.length === 0 || !poolInfoData.data[0]?.result) return "--";
 		const poolInfo = poolInfoData.data.map((pool) => {
 			const [depositToken, rewardToken, depositedAmount, apy, lockDays] = pool.result;
 			return {

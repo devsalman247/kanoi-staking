@@ -170,7 +170,6 @@ export default function Page() {
 			},
 		],
 	});
-	// console.log("🚀 ~ Page ~ allowanceData:", allowanceData.data);
 
 	const balanceData = useReadContracts({
 		contracts: [
@@ -187,7 +186,7 @@ export default function Page() {
 		],
 	});
 	const { kanoiBalance, saisenBalance, kanoiBalFormatted, saisenBalFormatted } = useMemo(() => {
-		if (!balanceData.data)
+		if (!balanceData.data || balanceData.data?.length === 0 || !address)
 			return { kanoiBalance: "0", saisenBalance: "0", kanoiBalFormatted: "0", saisenBalFormatted: "0" };
 		const kanoiBalance = new Decimal(balanceData.data[0].result.toString()).div(1e18);
 		const saisenBalance = new Decimal(balanceData.data[1].result.toString()).div(1e18);
@@ -205,7 +204,7 @@ export default function Page() {
 		})),
 	});
 	const poolInfo = useMemo(() => {
-		if (!poolInfoData.data || poolInfoData.data?.length === 0) return [];
+		if (!poolInfoData.data || poolInfoData.data?.length === 0 || !address) return [];
 		return poolInfoData.data.map((pool) => {
 			const [depositToken, rewardToken, depositedAmount, apy, lockDays] = pool.result;
 			return {
@@ -219,7 +218,17 @@ export default function Page() {
 	}, [poolInfoData.data]);
 
 	const estimatedAPY = useMemo(() => {
-		if (!poolInfo || poolInfo.length === 0) return "--";
+		if (!poolInfoData.data || poolInfoData.data?.length === 0) return "--";
+		const poolInfo = poolInfoData.data.map((pool) => {
+			const [depositToken, rewardToken, depositedAmount, apy, lockDays] = pool.result;
+			return {
+				depositToken,
+				rewardToken,
+				depositedAmount,
+				apy,
+				lockDays,
+			};
+		});
 
 		switch (stakeActiveTab.duration) {
 			case "oneMonth":
@@ -235,28 +244,25 @@ export default function Page() {
 			default:
 				return "--";
 		}
-	}, [poolInfo, stakeActiveTab]);
+	}, [stakeActiveTab, poolInfoData.data]);
 
 	const formatNumber = (numStr) => {
-		// Parse the string to a number
 		const num = parseFloat(numStr);
 
 		if (isNaN(num)) {
-			return numStr; // return the original string if it is not a valid number
+			return numStr;
 		}
 
-		// Check if the number is an integer
 		if (Number.isInteger(num)) {
-			return num.toString(); // Return the integer as a string
+			return num.toString();
 		} else {
 			if (numStr.includes("e")) {
 				const exponent = numStr.split("e")[1];
 				if (exponent < 0) {
-					return "< 0.01"; // Return "< 0.01" if the number is less than 0.01
+					return "< 0.01";
 				}
 				return numStr;
 			}
-			// If the number is a decimal, format it to show up to 2 significant digits
 			let significantDigits = numStr.split("e")[0].match(/^-?\d*\.?0*\d{0,2}/)[0];
 			return significantDigits;
 		}
@@ -271,13 +277,13 @@ export default function Page() {
 	});
 
 	const getPendingReward = (poolIndex) => {
-		if (!pendingRewardsData.data || pendingRewardsData.data?.length === 0) return "--";
+		if (!pendingRewardsData.data || pendingRewardsData.data?.length === 0 || !address) return "--";
 		const pendingRewards = pendingRewardsData.data[poolIndex].result.toString();
 		return formatNumber(new Decimal(pendingRewards).div(1e18).toString());
 	};
 
 	const totalPendingRewards = useMemo(() => {
-		if (!pendingRewardsData.data || pendingRewardsData.data?.length === 0) return "0";
+		if (!pendingRewardsData.data || pendingRewardsData.data?.length === 0 || !address) return "0";
 		const sliceStartIndex = activeTab === "kanoi" ? 0 : 5;
 		const sliceEndIndex = activeTab === "kanoi" ? 5 : 10;
 		const totalPendingRewards = pendingRewardsData.data.slice(sliceStartIndex, sliceEndIndex).reduce((acc, pool) => {
@@ -288,8 +294,8 @@ export default function Page() {
 	}, [pendingRewardsData.data, activeTab]);
 
 	const getDailyReward = (poolIndex, amountDeposited) => {
-		if (poolInfo === "--" || poolInfo?.length === 0) return "--";
-		const apy = new Decimal(poolInfo[poolIndex].apy.toString());
+		if (!poolInfoData.data || poolInfoData.data?.length === 0 || !address) return "--";
+		const apy = new Decimal(poolInfoData.data[poolIndex].result[3].toString());
 		const depositedAmount = new Decimal(amountDeposited.toString()).div(1e18);
 		const yearlyReward = apy.mul(depositedAmount).dividedBy(100);
 		const dailyReward = yearlyReward.div(360);
@@ -308,7 +314,7 @@ export default function Page() {
 	const { hasStakedInPool, poolsData } = useMemo(() => {
 		let poolsData = [];
 		let hasStakedInPool = false;
-		if (!userInfoData.data || userInfoData.data?.length === 0) return { hasStakedInPool, poolsData };
+		if (!userInfoData.data || userInfoData.data?.length === 0 || !address) return { hasStakedInPool, poolsData };
 		poolsData = userInfoData.data
 			.filter((pool, index) => {
 				if (activeTab === "kanoi" && index < 5 && pool.result[0].toString() !== "0") hasStakedInPool = true;
@@ -326,7 +332,7 @@ export default function Page() {
 
 	// Total Deposited/Staked
 	const { totalDeposited, totalDepositedFormatted } = useMemo(() => {
-		if (!userInfoData.data || userInfoData.data?.length === 0)
+		if (!userInfoData.data || userInfoData.data?.length === 0 || !address)
 			return { totalDeposited: null, totalDepositedFormatted: "0" };
 		const totalDeposited = userInfoData.data
 			.reduce((acc, pool) => {
@@ -356,7 +362,6 @@ export default function Page() {
 
 	const stake = async (coin) => {
 		try {
-			// console.log("🚀 ~ stake ~ stakingAmount entered:", stakingAmount);
 			if (
 				!stakingAmount ||
 				stakingAmount === "0" ||
@@ -367,7 +372,6 @@ export default function Page() {
 				return;
 			}
 			const amount = new Decimal(stakingAmount).mul(1e18).toString();
-			// console.log("🚀 ~ amount to Stake in big number:", amount);
 			const contractConfig = coin === "kanoi" ? KANOI_CONTRACT_CONFIG : SAISEN_CONTRACT_CONFIG;
 			const contractAddress = coin === "kanoi" ? KANOI_CONTRACT_ADDRESS : SAISEN_CONTRACT_ADDRESS;
 			const contractAbi = coin === "kanoi" ? KANOI_CONTRACT_ABI : SAISEN_CONTRACT_ABI;
@@ -390,7 +394,6 @@ export default function Page() {
 					functionName: "approve",
 					args: [STAKING_CONTRACT_ADDRESS, BigInt(amountDec.toFixed(18).split(".")[0])],
 				});
-				// console.log("🚀 ~ stake ~ approve result:", result);
 			} else {
 				console.log("🚀 ~ stake ~ allowance is greater than amount, staking now.");
 
@@ -409,7 +412,6 @@ export default function Page() {
 
 	useEffect(() => {
 		if (stakingTxReceipt) {
-			// console.log("🚀 ~ stakingTxReceiptReceipt ~ stakingTxReceiptReceipt:", stakingTxReceipt);
 			allowanceData.refetch();
 
 			const amountDec = new Decimal(stakingAmount).mul(1e18);
@@ -425,7 +427,6 @@ export default function Page() {
 
 	useEffect(() => {
 		if (stakingWriteTxReceipt.data) {
-			// console.log("🚀 ~ stakingTxReceipt ~ stakingTxReceipt:", stakingWriteTxReceipt.data);
 			notify("success", "Successfully staked!");
 			setIsStaking(false);
 

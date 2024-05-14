@@ -413,7 +413,9 @@ export default function Page() {
 
 	useEffect(() => {
 		if (stakingTxReceipt) {
-			allowanceData.refetch();
+			setTimeout(() => {
+				allowanceData.refetch();
+			}, 5000);
 
 			const amountDec = new Decimal(stakingAmount).mul(1e18);
 

@@ -205,7 +205,7 @@ export default function Page() {
 		})),
 	});
 	const poolInfo = useMemo(() => {
-		if (!poolInfoData.data) return [];
+		if (!poolInfoData.data || poolInfoData.data?.length === 0) return [];
 		return poolInfoData.data.map((pool) => {
 			const [depositToken, rewardToken, depositedAmount, apy, lockDays] = pool.result;
 			return {
@@ -271,13 +271,13 @@ export default function Page() {
 	});
 
 	const getPendingReward = (poolIndex) => {
-		if (!pendingRewardsData.data) return "--";
+		if (!pendingRewardsData.data || pendingRewardsData.data?.length === 0) return "--";
 		const pendingRewards = pendingRewardsData.data[poolIndex].result.toString();
 		return formatNumber(new Decimal(pendingRewards).div(1e18).toString());
 	};
 
 	const totalPendingRewards = useMemo(() => {
-		if (!pendingRewardsData.data) return "0";
+		if (!pendingRewardsData.data || pendingRewardsData.data?.length === 0) return "0";
 		const sliceStartIndex = activeTab === "kanoi" ? 0 : 5;
 		const sliceEndIndex = activeTab === "kanoi" ? 5 : 10;
 		const totalPendingRewards = pendingRewardsData.data.slice(sliceStartIndex, sliceEndIndex).reduce((acc, pool) => {
@@ -308,7 +308,7 @@ export default function Page() {
 	const { hasStakedInPool, poolsData } = useMemo(() => {
 		let poolsData = [];
 		let hasStakedInPool = false;
-		if (!userInfoData.data) return { hasStakedInPool, poolsData };
+		if (!userInfoData.data || userInfoData.data?.length === 0) return { hasStakedInPool, poolsData };
 		poolsData = userInfoData.data
 			.filter((pool, index) => {
 				if (activeTab === "kanoi" && index < 5 && pool.result[0].toString() !== "0") hasStakedInPool = true;
@@ -326,7 +326,8 @@ export default function Page() {
 
 	// Total Deposited/Staked
 	const { totalDeposited, totalDepositedFormatted } = useMemo(() => {
-		if (!userInfoData.data) return { totalDeposited: null, totalDepositedFormatted: "0" };
+		if (!userInfoData.data || userInfoData.data?.length === 0)
+			return { totalDeposited: null, totalDepositedFormatted: "0" };
 		const totalDeposited = userInfoData.data
 			.reduce((acc, pool) => {
 				const [amount] = pool.result;

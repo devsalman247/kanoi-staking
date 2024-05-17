@@ -80,6 +80,7 @@ export default function Page() {
 	const { address, isConnected } = useAccount();
 	const [stakingAmount, setStakingAmount] = useState("");
 	const [isStaking, setIsStaking] = useState(false);
+	const [stakingRecordsMap, setStakingRecordsMap] = useState([]);
 
 	const getDepositedAmount = (amount) =>
 		new Decimal(amount).div(1e18).greaterThanOrEqualTo(new Decimal("0.1"))
@@ -114,8 +115,8 @@ export default function Page() {
 		}
 	};
 
-	const getStakedDate = (duration, timestamp) => {
-		const stakedDuration = durationMap[duration] * 1000;
+	const getStakedDate = (poolIndex, timestamp) => {
+		const stakedDuration = durationMap[poolIndex] * 1000;
 		const stakedTime = Number(timestamp) * 1000 - stakedDuration;
 
 		const date = new Date(stakedTime);
@@ -203,23 +204,11 @@ export default function Page() {
 			args: [pool],
 		})),
 	});
-	const poolInfo = useMemo(() => {
-		if (!poolInfoData.data || poolInfoData.data?.length === 0 || !address) return [];
-		return poolInfoData.data.map((pool) => {
-			const [depositToken, rewardToken, depositedAmount, apy, lockDays] = pool.result;
-			return {
-				depositToken,
-				rewardToken,
-				depositedAmount,
-				apy,
-				lockDays,
-			};
-		});
-	}, [poolInfoData.data]);
 
 	const estimatedAPY = useMemo(() => {
 		if (!poolInfoData.data || poolInfoData.data?.length === 0 || !poolInfoData.data[0]?.result) return "--";
 		const poolInfo = poolInfoData.data.map((pool) => {
+			if (pool.error) return pool;
 			const [depositToken, rewardToken, depositedAmount, apy, lockDays] = pool.result;
 			return {
 				depositToken,
@@ -269,10 +258,10 @@ export default function Page() {
 	};
 
 	const pendingRewardsData = useReadContracts({
-		contracts: POOLS.map((pool) => ({
+		contracts: stakingRecordsMap.map((record) => ({
 			...STAKING_CONTRACT_CONFIG,
 			functionName: "pendingReward",
-			args: [pool, address],
+			args: [record.poolId, address, record.recordId],
 		})),
 	});
 
@@ -284,17 +273,19 @@ export default function Page() {
 
 	const totalPendingRewards = useMemo(() => {
 		if (!pendingRewardsData.data || pendingRewardsData.data?.length === 0 || !address) return "0";
-		const sliceStartIndex = activeTab === "kanoi" ? 0 : 5;
-		const sliceEndIndex = activeTab === "kanoi" ? 5 : 10;
-		const totalPendingRewards = pendingRewardsData.data.slice(sliceStartIndex, sliceEndIndex).reduce((acc, pool) => {
-			const pendingRewards = pool.result.toString();
-			return acc.add(new Decimal(pendingRewards));
+		const rewards = pendingRewardsData.data.filter((record) => record.result).map((record) => record.result);
+		if (rewards.length === 0) return "0";
+
+		let totalReward = rewards.reduce((acc, reward) => {
+			const rewardAmount = new Decimal(reward.toString());
+			return acc.add(rewardAmount);
 		}, new Decimal(0));
-		return formatNumber(totalPendingRewards.div(1e18).toString());
+
+		return formatNumber(totalReward.div(1e18).toString());
 	}, [pendingRewardsData.data, activeTab]);
 
-	const getDailyReward = (poolIndex, amountDeposited, lockDays) => {
-		if (!poolInfoData.data || poolInfoData.data?.length === 0 || !address || !lockDays) return "--";
+	const getDailyReward = (poolIndex, amountDeposited) => {
+		if (!poolInfoData.data || poolInfoData.data?.length === 0 || !address) return "--";
 		const apy = new Decimal(poolInfoData.data[poolIndex].result[3].toString());
 		const depositedAmount = new Decimal(amountDeposited.toString()).div(1e18);
 		const yearlyReward = apy.mul(depositedAmount).dividedBy(100);
@@ -302,55 +293,106 @@ export default function Page() {
 		return formatNumber(dailyReward.toString());
 	};
 
-	const userInfoData = useReadContracts({
-		contracts: POOLS.map((pool) => ({
+	const stakingRecordIds = useReadContract({
+		...STAKING_CONTRACT_CONFIG,
+		functionName: "getRecordIds",
+		args: [address],
+	});
+
+	const stakingRecordsData = useReadContracts({
+		contracts: stakingRecordsMap.map((record) => ({
 			...STAKING_CONTRACT_CONFIG,
 			functionName: "userInfo",
-			args: [pool, address],
+			args: [record.poolId, address, record.recordId],
 		})),
 	});
 
 	// Pools Staked Data
-	const { hasStakedInPool, poolsData } = useMemo(() => {
+	const { hasStakedInPool, poolsData, totalDeposited, totalDepositedFormatted } = useMemo(() => {
 		let poolsData = [];
 		let hasStakedInPool = false;
-		if (!userInfoData.data || userInfoData.data?.length === 0 || !address) return { hasStakedInPool, poolsData };
-		poolsData = userInfoData.data
-			.filter((pool, index) => {
-				if (activeTab === "kanoi" && index < 5 && pool.result[0].toString() !== "0") hasStakedInPool = true;
-				if (activeTab === "saisen" && index >= 5 && pool.result[0].toString() !== "0") hasStakedInPool = true;
-				return pool;
-			})
-			.map((pool) => {
-				return pool.result;
-			});
-		const kanoiPools = poolsData.slice(0, 5);
-		const saisenPools = poolsData.slice(5, 10);
-		poolsData = activeTab === "kanoi" ? kanoiPools : saisenPools;
-		return { hasStakedInPool, poolsData };
-	}, [userInfoData.data, activeTab]);
+		let totalDeposited = new Decimal(0);
+		let totalDepositedFormatted = new Decimal(0);
 
-	// Total Deposited/Staked
-	const { totalDeposited, totalDepositedFormatted } = useMemo(() => {
-		if (!userInfoData.data || userInfoData.data?.length === 0 || !address)
-			return { totalDeposited: null, totalDepositedFormatted: "0" };
-		const sliceStartIndex = activeTab === "kanoi" ? 0 : 5;
-		const sliceEndIndex = activeTab === "kanoi" ? 5 : 10;
-		const totalDeposited = userInfoData.data
-			.slice(sliceStartIndex, sliceEndIndex)
-			.reduce((acc, pool) => {
-				const [amount] = pool.result;
-				return acc.add(new Decimal(amount.toString()));
-			}, new Decimal(0))
-			.div(1e18);
+		if (!stakingRecordsData.data)
+			return {
+				hasStakedInPool,
+				poolsData,
+				totalDeposited: totalDeposited.toString(),
+				totalDepositedFormatted: totalDepositedFormatted.toString(),
+			};
 
-		const factor = new Decimal(100);
-		const totalDepositedFormatted = totalDeposited.mul(factor).floor().div(factor).toString();
+		const userStakingRecords = stakingRecordsData.data.filter((record) => record.result).map((record) => record.result);
+
+		// console.log("🚀 ~ Page ~ stakingRecordsData:", userStakingRecords, stakingRecordsData.data);
+		if (userStakingRecords.length === 0)
+			return {
+				hasStakedInPool,
+				poolsData,
+				totalDeposited: totalDeposited.toString(),
+				totalDepositedFormatted: totalDepositedFormatted.toString(),
+			};
+
+		userStakingRecords.forEach((record, index) => {
+			const [amount, lastRewardAt, unlockTime] = record;
+			const zeroDecimalAmount = new Decimal("0");
+			const stakedDecimalAmount = new Decimal(amount.toString()).div(1e18);
+
+			if (stakedDecimalAmount.greaterThan(zeroDecimalAmount)) {
+				hasStakedInPool = true;
+				const poolIndex = stakingRecordsMap[index].poolId;
+				const poolInfo = poolInfoData.data[poolIndex].result;
+				const [depositToken, rewardToken, depositedAmount, apy, lockDays] = poolInfo;
+				const dailyReward = getDailyReward(poolIndex, amount);
+				const pendingReward = getPendingReward(poolIndex);
+				const depositedAmountFormatted = getDepositedAmount(amount.toString());
+				const unlockDate = getUnlockedDate(unlockTime);
+				const stakedDate = getStakedDate(poolIndex, unlockTime);
+
+				totalDeposited = totalDeposited.add(new Decimal(amount.toString()));
+
+				poolsData.push({
+					depositToken,
+					rewardToken,
+					depositedAmount: depositedAmountFormatted,
+					dailyReward,
+					pendingReward,
+					unlockDate,
+					stakedDate,
+					pool: poolIndex,
+				});
+			}
+		});
+
+		totalDepositedFormatted = formatNumber(totalDeposited.div(1e18).toString());
+		totalDeposited = totalDeposited.toString();
+
+		// console.log("🚀 ~ Page ~ poolsData:", {
+		// 	hasStakedInPool,
+		// 	poolsData,
+		// 	totalDeposited,
+		// 	totalDepositedFormatted,
+		// });
 		return {
-			totalDeposited,
+			hasStakedInPool,
+			poolsData,
+			totalDeposited: totalDeposited.toString(),
 			totalDepositedFormatted,
 		};
-	}, [userInfoData.data, activeTab]);
+	}, [stakingRecordsData.data]);
+
+	useEffect(() => {
+		if (stakingRecordIds.data) {
+			const testPools = activeTab === "kanoi" ? POOLS.slice(0, 5) : POOLS.slice(5, 10);
+			const recordIds = [];
+			stakingRecordIds.data.forEach((record) =>
+				testPools.forEach((poolId) => {
+					recordIds.push({ recordId: Number(record), poolId });
+				})
+			);
+			setStakingRecordsMap(recordIds);
+		}
+	}, [stakingRecordIds.data, activeTab]);
 
 	// Write Functions
 	const { data: stakingTx, writeContractAsync, error: stakingTxError } = useWriteContract({});
@@ -444,7 +486,7 @@ export default function Page() {
 			setIsStaking(false);
 
 			balanceData.refetch();
-			userInfoData.refetch();
+			stakingRecordIds.refetch();
 			allowanceData.refetch();
 		}
 	}, [stakingWriteTxReceipt.data]);
@@ -788,82 +830,83 @@ export default function Page() {
 						</div>
 						{hasStakedInPool && (
 							<>
-								{poolsData.map(
-									(pool, index) =>
-										pool[0].toString() !== "0" && (
-											<div key={`pool-${index}`} className="p-4 mb-4 bg-white border rounded border-grey-200">
-												<div className="flex flex-row flex-wrap !md:flex-nowrap items-start md:items-center">
-													<div className="md:w-2/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0 xl:mr-4">
-														<div className="flex flex-col items-start xl:flex-row xl:items-center">
-															<p className="text-xs uppercase md:hidden text-grey-light">asset</p>
-															<div className="font-bold text-black uppercase text-xl xl:ml-3 xl:order-2">
-																{activeTab === "kanoi" ? "KANOI" : "SAISEN"}
-															</div>
-															<span
-																className="lazy-load-image-background lazy-load-image-loaded"
-																style={{
-																	color: "transparent",
-																	display: "inline-block",
-																	height: "120px",
-																	width: "120px",
-																}}>
-																<Image
-																	src="/apecoin-pool-image.png"
-																	className="h-[120px] w-[120px] max-w-none xl:order-1 rounded-lg"
-																	alt="NFT Asset"
-																	height="120"
-																	width="120"
-																/>
-															</span>
-														</div>
+								{poolsData.map((pool, index) => (
+									<div key={`pool-${index}`} className="p-4 mb-4 bg-white border rounded border-grey-200">
+										<div className="flex flex-row flex-wrap !md:flex-nowrap items-start md:items-center">
+											<div className="md:w-2/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0 xl:mr-4">
+												<div className="flex flex-col items-start xl:flex-row xl:items-center">
+													<p className="text-xs uppercase md:hidden text-grey-light">asset</p>
+													<div className="font-bold text-black uppercase text-xl xl:ml-3 xl:order-2">
+														{activeTab === "kanoi" ? "KANOI" : "SAISEN"}
 													</div>
-													<div className="md:w-2/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0">
-														<div className="text-black text-sm font-bold">
-															{getDailyReward(
-																activeTab === "kanoi" ? index : index + 5,
-																pool[0],
-																poolInfoData?.data?.[index].result[4]
-															)}{" "}
-															{activeTab === "kanoi" ? "Kanoi" : "Saisen"}
-														</div>
-														<div className="text-slate-700 font-medium">$0.42</div>
-													</div>
-													<div className="md:w-1/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0">
-														<div className="text-black text-sm font-bold">
-															{getPendingReward(activeTab === "kanoi" ? index : index + 5)}{" "}
-															{activeTab === "kanoi" ? "Kanoi" : "Saisen"}
-														</div>
-														<div className="text-slate-700 font-medium">$23.99</div>
-													</div>
-													<div className="md:w-1/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0">
-														<div className="text-black text-sm font-bold">
-															{getDepositedAmount(pool[0].toString())} {activeTab === "kanoi" ? "Kanoi" : "Saisen"}
-														</div>
-														<div className="text-slate-700 font-medium">$215.99</div>
-													</div>
-													<div className="md:w-2/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0">
-														<div className="text-slate-700">
-															{getStakedDate(activeTab === "kanoi" ? index : index + 5, pool[2])}
-														</div>
-													</div>
-													<div className="md:w-2/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0">
-														<div className="text-slate-700">{getUnlockedDate(pool[2])}</div>
-													</div>
-													<div className="md:w-1/12 basis-[100%] md:basis-[auto] md:flex md:flex-row md:justify-end">
-														<button
-															onClick={handleShow}
-															className="rounded border-2 uppercase px-5 py-2.5 mb-2 text-center font-bold text-xs disabled:cursor-not-allowed transition-colors bg-[#e8833a] text-white border-white-200 hover:bg-[#e8833a] focus:bg-[#e8833a] hover:border-[#e8833a] disabled:bg-grey w-full md:w-[150px]"
-															type="button">
-															<span className="flex items-center justify-center gap-2">
-																<iconify-icon icon="ic:baseline-lock" width="14" height="14"></iconify-icon>
-																<div>Locked</div>
-															</span>
-														</button>
-													</div>
+													<span
+														className="lazy-load-image-background lazy-load-image-loaded"
+														style={{
+															color: "transparent",
+															display: "inline-block",
+															height: "120px",
+															width: "120px",
+														}}>
+														<Image
+															src="/apecoin-pool-image.png"
+															className="h-[120px] w-[120px] max-w-none xl:order-1 rounded-lg"
+															alt="NFT Asset"
+															height="120"
+															width="120"
+														/>
+													</span>
 												</div>
 											</div>
-										)
-								)}
+											<div className="md:w-2/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0">
+												<div className="text-black text-sm font-bold">
+													{/* {getDailyReward(activeTab === "kanoi" ? index : index + 5, pool[0])} */}
+													{pool.dailyReward}
+													{activeTab === "kanoi" ? "Kanoi" : "Saisen"}
+												</div>
+												<div className="text-slate-700 font-medium">$0.42</div>
+											</div>
+											<div className="md:w-1/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0">
+												<div className="text-black text-sm font-bold">
+													{/* {getPendingReward(activeTab === "kanoi" ? index : index + 5)} */}
+													{pool.pendingReward}
+													{activeTab === "kanoi" ? "Kanoi" : "Saisen"}
+												</div>
+												<div className="text-slate-700 font-medium">$23.99</div>
+											</div>
+											<div className="md:w-1/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0">
+												<div className="text-black text-sm font-bold">
+													{/* {getDepositedAmount(pool[0].toString())} */}
+													{pool.depositedAmount}
+													{activeTab === "kanoi" ? "Kanoi" : "Saisen"}
+												</div>
+												<div className="text-slate-700 font-medium">$215.99</div>
+											</div>
+											<div className="md:w-2/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0">
+												<div className="text-slate-700">
+													{/* {getStakedDate(activeTab === "kanoi" ? index : index + 5, pool[2])} */}
+													{pool.stakedDate}
+												</div>
+											</div>
+											<div className="md:w-2/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0">
+												<div className="text-slate-700">
+													{/* {getUnlockedDate(pool[2])} */}
+													{pool.unlockDate}
+												</div>
+											</div>
+											<div className="md:w-1/12 basis-[100%] md:basis-[auto] md:flex md:flex-row md:justify-end">
+												<button
+													onClick={handleShow}
+													className="rounded border-2 uppercase px-5 py-2.5 mb-2 text-center font-bold text-xs disabled:cursor-not-allowed transition-colors bg-[#e8833a] text-white border-white-200 hover:bg-[#e8833a] focus:bg-[#e8833a] hover:border-[#e8833a] disabled:bg-grey w-full md:w-[150px]"
+													type="button">
+													<span className="flex items-center justify-center gap-2">
+														<iconify-icon icon="ic:baseline-lock" width="14" height="14"></iconify-icon>
+														<div>Locked</div>
+													</span>
+												</button>
+											</div>
+										</div>
+									</div>
+								))}
 								<div className="p-4 mb-4 bg-white border rounded border-grey-200">
 									<div className="flex flex-row flex-wrap !md:flex-nowrap items-start md:items-center">
 										<div className="md:w-3/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0 xl:mr-4">

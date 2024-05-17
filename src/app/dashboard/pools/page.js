@@ -48,8 +48,8 @@ export default function Page() {
 			.slice(5, 10)
 			.reduce((acc, pool) => acc.add(new Decimal(pool.result[2].toString())), new Decimal(0));
 
-		kanoiPossibleRewards = kanoiTotalStaked.mul(kanoiMaxApy).div(100).div(360).div(1e18).toFixed(2);
-		saisenPossibleRewards = saisenTotalStaked.mul(saisenMaxApy).div(100).div(360).div(1e18).toFixed(2);
+		kanoiPossibleRewards = kanoiTotalStaked.mul(kanoiMaxApy).div(100).div(365).div(1e18).toFixed(2);
+		saisenPossibleRewards = saisenTotalStaked.mul(saisenMaxApy).div(100).div(365).div(1e18).toFixed(2);
 		console.log("🚀 ~ Page ~ poolInfoData.data:", kanoiPossibleRewards, saisenPossibleRewards);
 
 		return {

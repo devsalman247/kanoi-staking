@@ -1,4 +1,4 @@
-const STAKING_CONTRACT_ADDRESS = "0xEa14d06e3ba148B07439C986766c56Ae324f50E1";
+const STAKING_CONTRACT_ADDRESS = "0x850b653b368e54d6f23F10d6c20b93A4fc6f4612";
 const KANOI_CONTRACT_ADDRESS = "0x6C3893c7196e993495BC3f52D5abBC83C431e69B";
 const SAISEN_CONTRACT_ADDRESS = "0x1f9F2c83C172e7dB204A7577CCa5777Bc9b350B7";
 
@@ -94,6 +94,13 @@ const STAKING_CONTRACT_ABI = [
 		type: "function",
 	},
 	{
+		inputs: [{ internalType: "address", name: "_user", type: "address" }],
+		name: "getRecordIds",
+		outputs: [{ internalType: "uint256[]", name: "", type: "uint256[]" }],
+		stateMutability: "view",
+		type: "function",
+	},
+	{
 		inputs: [{ internalType: "address", name: "initialOwner", type: "address" }],
 		name: "initialize",
 		outputs: [],
@@ -121,6 +128,7 @@ const STAKING_CONTRACT_ABI = [
 		inputs: [
 			{ internalType: "uint256", name: "_pid", type: "uint256" },
 			{ internalType: "address", name: "_user", type: "address" },
+			{ internalType: "uint256", name: "_id", type: "uint256" },
 		],
 		name: "pendingReward",
 		outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
@@ -179,6 +187,7 @@ const STAKING_CONTRACT_ABI = [
 		inputs: [
 			{ internalType: "uint256", name: "", type: "uint256" },
 			{ internalType: "address", name: "", type: "address" },
+			{ internalType: "uint256", name: "", type: "uint256" },
 		],
 		name: "userInfo",
 		outputs: [
@@ -193,6 +202,7 @@ const STAKING_CONTRACT_ABI = [
 		inputs: [
 			{ internalType: "uint256", name: "_pid", type: "uint256" },
 			{ internalType: "uint256", name: "_amount", type: "uint256" },
+			{ internalType: "uint256", name: "_id", type: "uint256" },
 		],
 		name: "withdraw",
 		outputs: [],

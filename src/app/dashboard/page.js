@@ -344,7 +344,7 @@ export default function Page() {
 				const poolInfo = poolInfoData.data[poolIndex].result;
 				const [depositToken, rewardToken, depositedAmount, apy, lockDays] = poolInfo;
 				const dailyReward = getDailyReward(poolIndex, amount);
-				const pendingReward = getPendingReward(poolIndex);
+				const pendingReward = getPendingReward(index);
 				const depositedAmountFormatted = getDepositedAmount(amount.toString());
 				const unlockDate = getUnlockedDate(unlockTime);
 				const stakedDate = getStakedDate(poolIndex, unlockTime);

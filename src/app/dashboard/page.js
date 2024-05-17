@@ -379,7 +379,7 @@ export default function Page() {
 			totalDeposited: totalDeposited.toString(),
 			totalDepositedFormatted,
 		};
-	}, [stakingRecordsData.data]);
+	}, [stakingRecordsData.data, pendingRewardsData.data]);
 
 	useEffect(() => {
 		if (stakingRecordIds.data) {

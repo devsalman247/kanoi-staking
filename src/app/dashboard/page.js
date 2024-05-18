@@ -80,6 +80,8 @@ export default function Page() {
 	const { address, isConnected } = useAccount();
 	const [stakingAmount, setStakingAmount] = useState("");
 	const [isStaking, setIsStaking] = useState(false);
+	const [isWithdrawing, setIsWithdrawing] = useState(false);
+	const [withdrawRecordId, setWithdrawRecordId] = useState(null);
 	const [stakingRecordsMap, setStakingRecordsMap] = useState([]);
 
 	const getDepositedAmount = (amount) =>
@@ -342,7 +344,7 @@ export default function Page() {
 				hasStakedInPool = true;
 				const poolIndex = stakingRecordsMap[index].poolId;
 				const poolInfo = poolInfoData.data[poolIndex].result;
-				const [depositToken, rewardToken, depositedAmount, apy, lockDays] = poolInfo;
+				const [depositToken, rewardToken] = poolInfo;
 				const dailyReward = getDailyReward(poolIndex, amount);
 				const pendingReward = getPendingReward(index);
 				const depositedAmountFormatted = getDepositedAmount(amount.toString());
@@ -354,12 +356,14 @@ export default function Page() {
 				poolsData.push({
 					depositToken,
 					rewardToken,
-					depositedAmount: depositedAmountFormatted,
+					depositedAmountFormatted: depositedAmountFormatted,
+					depositedAmount: amount.toString(),
 					dailyReward,
 					pendingReward,
 					unlockDate,
 					stakedDate,
-					pool: poolIndex,
+					poolId: poolIndex,
+					recordId: stakingRecordsMap[index].recordId,
 				});
 			}
 		});
@@ -383,6 +387,7 @@ export default function Page() {
 
 	useEffect(() => {
 		if (stakingRecordIds.data) {
+			console.log("🚀 ~ useEffect ~ stakingRecordIds.data:", stakingRecordIds.data);
 			const testPools = activeTab === "kanoi" ? POOLS.slice(0, 5) : POOLS.slice(5, 10);
 			const recordIds = [];
 			stakingRecordIds.data.forEach((record) =>
@@ -405,13 +410,37 @@ export default function Page() {
 		hash: stakingWriteTx.data,
 	});
 
+	const withdrawWriteTx = useWriteContract({});
+	const withdrawWriteTxReceipt = useWaitForTransactionReceipt({
+		hash: withdrawWriteTx.data,
+	});
+
+	const withdraw = async (poolId, amount, recordId) => {
+		if (isWithdrawing || isStaking) return;
+		setIsWithdrawing(true);
+		setWithdrawRecordId(recordId);
+		try {
+			await withdrawWriteTx.writeContractAsync?.({
+				abi: STAKING_CONTRACT_ABI,
+				address: STAKING_CONTRACT_ADDRESS,
+				functionName: "withdraw",
+				args: [poolId, amount, recordId],
+			});
+		} catch (error) {
+			console.log("🚀 ~ withdraw ~ error:", error);
+			setIsWithdrawing(false);
+			setWithdrawRecordId(null);
+		}
+	};
+
 	const stake = async (coin) => {
 		try {
 			if (
 				!stakingAmount ||
 				stakingAmount === "0" ||
 				Number.isNaN(Number(stakingAmount)) ||
-				Number(stakingAmount) <= 0
+				Number(stakingAmount) <= 0 ||
+				isWithdrawing
 			) {
 				notify("error", "Please enter a valid amount to stake.");
 				return;
@@ -490,6 +519,18 @@ export default function Page() {
 			allowanceData.refetch();
 		}
 	}, [stakingWriteTxReceipt.data]);
+
+	useEffect(() => {
+		if (withdrawWriteTxReceipt.data) {
+			notify("success", "Withdraw successful!");
+			setIsWithdrawing(false);
+			setWithdrawRecordId(null);
+
+			balanceData.refetch();
+			stakingRecordIds.refetch();
+			allowanceData.refetch();
+		}
+	}, [withdrawWriteTxReceipt.data]);
 
 	useEffect(() => {
 		notify("error", stakingTxError?.details);
@@ -828,10 +869,12 @@ export default function Page() {
 								</div>
 							</div>
 						</div>
-						{hasStakedInPool && (
+						{hasStakedInPool && poolsData && (
 							<>
 								{poolsData.map((pool, index) => (
-									<div key={`pool-${index}`} className="p-4 mb-4 bg-white border rounded border-grey-200">
+									<div
+										key={`pool-${index}-${pool.poolId}`}
+										className="p-4 mb-4 bg-white border rounded border-grey-200">
 										<div className="flex flex-row flex-wrap !md:flex-nowrap items-start md:items-center">
 											<div className="md:w-2/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0 xl:mr-4">
 												<div className="flex flex-col items-start xl:flex-row xl:items-center">
@@ -876,7 +919,7 @@ export default function Page() {
 											<div className="md:w-1/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0">
 												<div className="text-black text-sm font-bold">
 													{/* {getDepositedAmount(pool[0].toString())} */}
-													{pool.depositedAmount}
+													{pool.depositedAmountFormatted}
 													{activeTab === "kanoi" ? "Kanoi" : "Saisen"}
 												</div>
 												<div className="text-slate-700 font-medium">$215.99</div>
@@ -894,20 +937,40 @@ export default function Page() {
 												</div>
 											</div>
 											<div className="md:w-1/12 basis-[100%] md:basis-[auto] md:flex md:flex-row md:justify-end">
-												<button
-													onClick={handleShow}
-													className="rounded border-2 uppercase px-5 py-2.5 mb-2 text-center font-bold text-xs disabled:cursor-not-allowed transition-colors bg-[#e8833a] text-white border-white-200 hover:bg-[#e8833a] focus:bg-[#e8833a] hover:border-[#e8833a] disabled:bg-grey w-full md:w-[150px]"
-													type="button">
-													<span className="flex items-center justify-center gap-2">
-														<iconify-icon icon="ic:baseline-lock" width="14" height="14"></iconify-icon>
-														<div>Locked</div>
-													</span>
-												</button>
+												{isWithdrawing && withdrawRecordId === pool.recordId ? (
+													<button
+														className="rounded border-2 uppercase px-5 py-2.5 mb-2 text-center font-bold text-xs disabled:cursor-not-allowed transition-colors bg-[#e8833a] text-white border-white-200 hover:bg-[#e8833a] focus:bg-[#e8833a] hover:border-[#e8833a] disabled:bg-grey w-full md:w-[150px]"
+														type="button">
+														<span className="flex items-center justify-center gap-2">
+															<iconify-icon icon="uil:money-withdrawal" width="14" height="14"></iconify-icon>
+															<div>Withdrawing...</div>
+														</span>
+													</button>
+												) : pool.unlockDate === "Unlocked" ? (
+													<button
+														onClick={() => withdraw(pool.poolId, pool.depositedAmount, pool.recordId)}
+														className="rounded border-2 uppercase px-5 py-2.5 mb-2 text-center font-bold text-xs disabled:cursor-not-allowed transition-colors bg-[#e8833a] text-white border-white-200 hover:bg-[#e8833a] focus:bg-[#e8833a] hover:border-[#e8833a] disabled:bg-grey w-full md:w-[150px]"
+														type="button">
+														<span className="flex items-center justify-center gap-2">
+															<iconify-icon icon="uil:money-withdrawal" width="14" height="14"></iconify-icon>
+															<div>Withdraw</div>
+														</span>
+													</button>
+												) : (
+													<button
+														className="rounded border-2 uppercase px-5 py-2.5 mb-2 text-center font-bold text-xs disabled:cursor-not-allowed transition-colors bg-[#e8833a] text-white border-white-200 hover:bg-[#e8833a] focus:bg-[#e8833a] hover:border-[#e8833a] disabled:bg-grey w-full md:w-[150px]"
+														type="button">
+														<span className="flex items-center justify-center gap-2">
+															<iconify-icon icon="ic:baseline-lock" width="14" height="14"></iconify-icon>
+															<div>Locked</div>
+														</span>
+													</button>
+												)}
 											</div>
 										</div>
 									</div>
 								))}
-								<div className="p-4 mb-4 bg-white border rounded border-grey-200">
+								{/* <div className="p-4 mb-4 bg-white border rounded border-grey-200">
 									<div className="flex flex-row flex-wrap !md:flex-nowrap items-start md:items-center">
 										<div className="md:w-3/12 basis-[100%] md:basis-[auto] mb-6 md:mb-0 xl:mr-4">
 											<div className="flex flex-col items-start xl:flex-row xl:items-center">
@@ -991,7 +1054,7 @@ export default function Page() {
 											</div>
 										</div>
 									</Collapse>
-								</div>
+								</div> */}
 							</>
 						)}
 					</div>

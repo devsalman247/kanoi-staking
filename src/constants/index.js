@@ -1,4 +1,4 @@
-const STAKING_CONTRACT_ADDRESS = "0x850b653b368e54d6f23F10d6c20b93A4fc6f4612";
+const STAKING_CONTRACT_ADDRESS = "0x79dF54206657a87c8E7A8DCa6ef716C9497F1FEa";
 const KANOI_CONTRACT_ADDRESS = "0x6C3893c7196e993495BC3f52D5abBC83C431e69B";
 const SAISEN_CONTRACT_ADDRESS = "0x1f9F2c83C172e7dB204A7577CCa5777Bc9b350B7";
 
@@ -111,6 +111,7 @@ const STAKING_CONTRACT_ABI = [
 		inputs: [
 			{ internalType: "uint256", name: "_pid", type: "uint256" },
 			{ internalType: "uint256", name: "_apy", type: "uint256" },
+			{ internalType: "uint256", name: "_lockDays", type: "uint256" },
 		],
 		name: "modifyPool",
 		outputs: [],
